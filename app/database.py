@@ -11,7 +11,7 @@ import time
 from contextlib import contextmanager
 from sqlalchemy.exc import SQLAlchemyError, OperationalError
 import logging
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 logger = logging.getLogger(__name__)
 
@@ -21,25 +21,32 @@ DATABASE_URL = "postgresql://postgres.olzrkkjzqltovkvxeggb:UyikRRRGhgGLUYRI@aws-
 engine = create_engine(
     DATABASE_URL,
     poolclass=QueuePool,
-    pool_size=1,  # Minimized pool size
-    max_overflow=2,  # Minimized overflow
-    pool_timeout=30,  # Increased timeout
-    pool_recycle=60,  # Recycle connections every minute
-    pool_pre_ping=True,  # Enable connection health checks
-    echo=False,  # Disable SQL logging
+    pool_size=5,  # Aumentado para manejar más conexiones
+    max_overflow=10,  # Aumentado para permitir más conexiones en picos
+    pool_timeout=60,  # Aumentado para dar más tiempo a las conexiones
+    pool_recycle=30,  # Reciclar conexiones cada 30 segundos
+    pool_pre_ping=True,  # Verificar conexiones antes de usarlas
+    echo=False,  # Deshabilitar logging SQL
     connect_args={
-        "connect_timeout": 30,  # Increased connection timeout
+        "connect_timeout": 60,  # Aumentado timeout de conexión
         "keepalives": 1,
         "keepalives_idle": 30,
         "keepalives_interval": 10,
         "keepalives_count": 5,
-        "application_name": "football-team-management"  # Identificador de la aplicación
+        "application_name": "football-team-management",
+        "options": "-c statement_timeout=60000"  # Timeout de 60 segundos para consultas
     }
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 metadata = MetaData()
 
+@retry(
+    stop=stop_after_attempt(5),  # Aumentado a 5 intentos
+    wait=wait_exponential(multiplier=1, min=4, max=30),  # Espera más larga entre intentos
+    retry=retry_if_exception_type(OperationalError),  # Solo reintentar errores de conexión
+    reraise=True
+)
 def get_db():
     db = SessionLocal()
     try:

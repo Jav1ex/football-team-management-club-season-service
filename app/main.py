@@ -8,9 +8,13 @@ from . import models, schemas, crud
 from .database import get_db
 import time
 import logging
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 # Configurar logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
@@ -19,7 +23,7 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=False,  # Cambiado a False para evitar problemas con CORS
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -27,8 +31,11 @@ app.add_middleware(
 # Middleware para manejar errores de base de datos
 @app.middleware("http")
 async def db_session_middleware(request: Request, call_next):
+    start_time = time.time()
     try:
         response = await call_next(request)
+        process_time = time.time() - start_time
+        logger.info(f"Request completed in {process_time:.2f} seconds")
         return response
     except OperationalError as e:
         logger.error(f"Error de conexión a la base de datos: {str(e)}")
@@ -66,7 +73,9 @@ async def create_estadio(estadio: schemas.EstadioCreate, db: Session = Depends(g
 @estadios_router.get("/", response_model=List[schemas.Estadio])
 async def read_estadios(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     try:
+        logger.info(f"Obteniendo estadios (skip={skip}, limit={limit})")
         estadios = crud.get_estadios(db, skip=skip, limit=limit)
+        logger.info(f"Se obtuvieron {len(estadios)} estadios")
         return estadios
     except SQLAlchemyError as e:
         logger.error(f"Error al obtener estadios: {str(e)}")
@@ -103,7 +112,9 @@ async def create_equipo(equipo: schemas.EquipoCreate, db: Session = Depends(get_
 @equipos_router.get("/", response_model=List[schemas.Equipo])
 async def read_equipos(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     try:
+        logger.info(f"Obteniendo equipos (skip={skip}, limit={limit})")
         equipos = crud.get_equipos(db, skip=skip, limit=limit)
+        logger.info(f"Se obtuvieron {len(equipos)} equipos")
         return equipos
     except SQLAlchemyError as e:
         logger.error(f"Error al obtener equipos: {str(e)}")
@@ -143,7 +154,9 @@ async def create_temporada(temporada: schemas.TemporadaCreate, db: Session = Dep
 @temporadas_router.get("/", response_model=List[schemas.Temporada])
 async def read_temporadas(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     try:
+        logger.info(f"Obteniendo temporadas (skip={skip}, limit={limit})")
         temporadas = crud.get_temporadas(db, skip=skip, limit=limit)
+        logger.info(f"Se obtuvieron {len(temporadas)} temporadas")
         return temporadas
     except SQLAlchemyError as e:
         logger.error(f"Error al obtener temporadas: {str(e)}")
@@ -186,7 +199,10 @@ async def create_equipo_temporada(equipo_temporada: schemas.EquipoTemporadaCreat
 @equipo_temporada_router.get("/", response_model=List[schemas.EquipoTemporada])
 async def read_equipo_temporada(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     try:
-        return crud.get_equipo_temporada_list(db, skip=skip, limit=limit)
+        logger.info(f"Obteniendo relaciones equipo-temporada (skip={skip}, limit={limit})")
+        relaciones = crud.get_equipo_temporada_list(db, skip=skip, limit=limit)
+        logger.info(f"Se obtuvieron {len(relaciones)} relaciones")
+        return relaciones
     except SQLAlchemyError as e:
         logger.error(f"Error al obtener relaciones equipo-temporada: {str(e)}")
         raise HTTPException(status_code=503, detail="Error al obtener las relaciones equipo-temporada")
