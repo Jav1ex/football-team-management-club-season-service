@@ -9,6 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import QueuePool
 import time
 from contextlib import contextmanager
+from sqlalchemy.exc import SQLAlchemyError
 
 DATABASE_URL = "postgresql://postgres.olzrkkjzqltovkvxeggb:UyikRRRGhgGLUYRI@aws-0-us-east-2.pooler.supabase.com:5432/postgres"
 
@@ -16,34 +17,30 @@ DATABASE_URL = "postgresql://postgres.olzrkkjzqltovkvxeggb:UyikRRRGhgGLUYRI@aws-
 engine = create_engine(
     DATABASE_URL,
     poolclass=QueuePool,
-    pool_size=3,  # Reduced pool size
-    max_overflow=5,  # Reduced max overflow
-    pool_timeout=20,  # Reduced timeout
-    pool_recycle=300,  # Recycle connections every 5 minutes
+    pool_size=2,  # Further reduced pool size
+    max_overflow=3,  # Further reduced max overflow
+    pool_timeout=10,  # Further reduced timeout
+    pool_recycle=180,  # Recycle connections every 3 minutes
     pool_pre_ping=True,  # Enable connection health checks
     echo=False,  # Disable SQL logging
     connect_args={
-        "connect_timeout": 10,  # Connection timeout in seconds
-        "keepalives": 1,  # Enable keepalive
-        "keepalives_idle": 30,  # Idle time before sending keepalive
-        "keepalives_interval": 10,  # Time between keepalives
-        "keepalives_count": 5  # Number of keepalives before dropping connection
+        "connect_timeout": 5,  # Reduced connection timeout
+        "keepalives": 1,
+        "keepalives_idle": 15,  # Reduced idle time
+        "keepalives_interval": 5,  # Reduced interval
+        "keepalives_count": 3  # Reduced count
     }
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 metadata = MetaData()
 
-@contextmanager
-def get_db():
+def get_db_session():
     db = SessionLocal()
     try:
         yield db
-    except Exception as e:
+    except SQLAlchemyError as e:
         db.rollback()
         raise e
     finally:
-        db.close()
-
-def get_db_session():
-    return get_db() 
+        db.close() 

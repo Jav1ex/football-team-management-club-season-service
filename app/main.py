@@ -3,10 +3,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from typing import List
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError, OperationalError
 from . import models, schemas, crud
 from .database import get_db_session
 import time
+import logging
+
+# Configurar logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -14,7 +19,7 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,  # Cambiado a False para evitar problemas con CORS
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -25,12 +30,20 @@ async def db_session_middleware(request: Request, call_next):
     try:
         response = await call_next(request)
         return response
-    except SQLAlchemyError as e:
+    except OperationalError as e:
+        logger.error(f"Error de conexión a la base de datos: {str(e)}")
         return JSONResponse(
             status_code=503,
             content={"detail": "Error de conexión a la base de datos. Por favor, intente nuevamente."}
         )
+    except SQLAlchemyError as e:
+        logger.error(f"Error de SQLAlchemy: {str(e)}")
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "Error en la operación de base de datos. Por favor, intente nuevamente."}
+        )
     except Exception as e:
+        logger.error(f"Error interno del servidor: {str(e)}")
         return JSONResponse(
             status_code=500,
             content={"detail": "Error interno del servidor"}
@@ -56,6 +69,7 @@ async def read_estadios(skip: int = 0, limit: int = 100, db: Session = Depends(g
         estadios = crud.get_estadios(db, skip=skip, limit=limit)
         return estadios
     except SQLAlchemyError as e:
+        logger.error(f"Error al obtener estadios: {str(e)}")
         raise HTTPException(status_code=503, detail="Error al obtener los estadios")
 
 @estadios_router.get("/{estadio_id}", response_model=schemas.Estadio)
@@ -92,6 +106,7 @@ async def read_equipos(skip: int = 0, limit: int = 100, db: Session = Depends(ge
         equipos = crud.get_equipos(db, skip=skip, limit=limit)
         return equipos
     except SQLAlchemyError as e:
+        logger.error(f"Error al obtener equipos: {str(e)}")
         raise HTTPException(status_code=503, detail="Error al obtener los equipos")
 
 @equipos_router.get("/{equipo_id}", response_model=schemas.Equipo)
@@ -131,6 +146,7 @@ async def read_temporadas(skip: int = 0, limit: int = 100, db: Session = Depends
         temporadas = crud.get_temporadas(db, skip=skip, limit=limit)
         return temporadas
     except SQLAlchemyError as e:
+        logger.error(f"Error al obtener temporadas: {str(e)}")
         raise HTTPException(status_code=503, detail="Error al obtener las temporadas")
 
 @temporadas_router.get("/{temporada_id}", response_model=schemas.Temporada)
@@ -172,6 +188,7 @@ async def read_equipo_temporada(skip: int = 0, limit: int = 100, db: Session = D
     try:
         return crud.get_equipo_temporada_list(db, skip=skip, limit=limit)
     except SQLAlchemyError as e:
+        logger.error(f"Error al obtener relaciones equipo-temporada: {str(e)}")
         raise HTTPException(status_code=503, detail="Error al obtener las relaciones equipo-temporada")
 
 @equipo_temporada_router.get("/{equipo_id}/{temporada_id}", response_model=schemas.EquipoTemporada)
