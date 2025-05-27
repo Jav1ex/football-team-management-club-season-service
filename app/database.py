@@ -40,12 +40,7 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 metadata = MetaData()
 
-@retry(
-    stop=stop_after_attempt(3),  # Intentar 3 veces
-    wait=wait_exponential(multiplier=1, min=4, max=10),  # Espera exponencial entre intentos
-    reraise=True
-)
-def get_db_session():
+def get_db():
     db = SessionLocal()
     try:
         yield db
@@ -58,4 +53,12 @@ def get_db_session():
         db.rollback()
         raise e
     finally:
-        db.close() 
+        db.close()
+
+@retry(
+    stop=stop_after_attempt(3),  # Intentar 3 veces
+    wait=wait_exponential(multiplier=1, min=4, max=10),  # Espera exponencial entre intentos
+    reraise=True
+)
+def get_db_session():
+    return get_db() 
