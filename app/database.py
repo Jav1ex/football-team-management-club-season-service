@@ -41,12 +41,6 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 metadata = MetaData()
 
-@retry(
-    stop=stop_after_attempt(5),  # Aumentado a 5 intentos
-    wait=wait_exponential(multiplier=1, min=4, max=30),  # Espera más larga entre intentos
-    retry=retry_if_exception_type(OperationalError),  # Solo reintentar errores de conexión
-    reraise=True
-)
 def get_db():
     db = SessionLocal()
     try:
@@ -63,9 +57,13 @@ def get_db():
         db.close()
 
 @retry(
-    stop=stop_after_attempt(3),  # Intentar 3 veces
-    wait=wait_exponential(multiplier=1, min=4, max=10),  # Espera exponencial entre intentos
+    stop=stop_after_attempt(5),  # Aumentado a 5 intentos
+    wait=wait_exponential(multiplier=1, min=4, max=30),  # Espera más larga entre intentos
+    retry=retry_if_exception_type(OperationalError),  # Solo reintentar errores de conexión
     reraise=True
 )
-def get_db_session():
-    return get_db() 
+def execute_with_retry(func, *args, **kwargs):
+    """
+    Función auxiliar para ejecutar operaciones de base de datos con reintentos
+    """
+    return func(*args, **kwargs) 

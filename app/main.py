@@ -5,7 +5,7 @@ from typing import List
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError, OperationalError
 from . import models, schemas, crud
-from .database import get_db
+from .database import get_db, execute_with_retry
 import time
 import logging
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -74,7 +74,7 @@ async def create_estadio(estadio: schemas.EstadioCreate, db: Session = Depends(g
 async def read_estadios(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     try:
         logger.info(f"Obteniendo estadios (skip={skip}, limit={limit})")
-        estadios = crud.get_estadios(db, skip=skip, limit=limit)
+        estadios = execute_with_retry(crud.get_estadios, db, skip=skip, limit=limit)
         logger.info(f"Se obtuvieron {len(estadios)} estadios")
         return estadios
     except SQLAlchemyError as e:
@@ -113,7 +113,7 @@ async def create_equipo(equipo: schemas.EquipoCreate, db: Session = Depends(get_
 async def read_equipos(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     try:
         logger.info(f"Obteniendo equipos (skip={skip}, limit={limit})")
-        equipos = crud.get_equipos(db, skip=skip, limit=limit)
+        equipos = execute_with_retry(crud.get_equipos, db, skip=skip, limit=limit)
         logger.info(f"Se obtuvieron {len(equipos)} equipos")
         return equipos
     except SQLAlchemyError as e:
@@ -155,7 +155,7 @@ async def create_temporada(temporada: schemas.TemporadaCreate, db: Session = Dep
 async def read_temporadas(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     try:
         logger.info(f"Obteniendo temporadas (skip={skip}, limit={limit})")
-        temporadas = crud.get_temporadas(db, skip=skip, limit=limit)
+        temporadas = execute_with_retry(crud.get_temporadas, db, skip=skip, limit=limit)
         logger.info(f"Se obtuvieron {len(temporadas)} temporadas")
         return temporadas
     except SQLAlchemyError as e:
@@ -200,7 +200,7 @@ async def create_equipo_temporada(equipo_temporada: schemas.EquipoTemporadaCreat
 async def read_equipo_temporada(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     try:
         logger.info(f"Obteniendo relaciones equipo-temporada (skip={skip}, limit={limit})")
-        relaciones = crud.get_equipo_temporada_list(db, skip=skip, limit=limit)
+        relaciones = execute_with_retry(crud.get_equipo_temporada_list, db, skip=skip, limit=limit)
         logger.info(f"Se obtuvieron {len(relaciones)} relaciones")
         return relaciones
     except SQLAlchemyError as e:
