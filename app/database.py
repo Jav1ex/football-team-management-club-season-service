@@ -15,7 +15,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 
 logger = logging.getLogger(__name__)
 
-DATABASE_URL = "postgresql://postgres.olzrkkjzqltovkvxeggb:UyikRRRGhgGLUYRI@aws-0-us-east-2.pooler.supabase.com:5432/postgres"
+DATABASE_URL = "postgresql://postgres.olzrkkjzqltovkvxeggb:8JZ7eCTM0R7AdX08@aws-0-us-east-2.pooler.supabase.com:5432/postgres"
 
 # Configure the engine with connection pool settings
 engine = create_engine(
